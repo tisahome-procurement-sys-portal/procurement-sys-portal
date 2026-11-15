@@ -765,6 +765,7 @@ function printCurrentPoDraft() {
   window.open(pdfUrl, '_blank');
 }
 
+// Call API 
 async function askAiToUpdatePo() {
   const inputEl = document.getElementById('aiChatInput');
   const chatLog = document.getElementById('aiChatLog');
@@ -773,9 +774,13 @@ async function askAiToUpdatePo() {
 
   if (!instruction) return;
 
-  if (!GEMINI_API_KEY || GEMINI_API_KEY.includes('PASTE_YOUR')) {
-    alert('Please paste your Gemini API Key in GEMINI_API_KEY inside app.js and press Ctrl+S.');
-    return;
+  let activeApiKey = (localStorage.getItem('PROCUREMENT_GEMINI_KEY') || GEMINI_API_KEY || '').trim();
+
+  if (!activeApiKey || activeApiKey.includes('PASTE_YOUR') || activeApiKey.includes('ILAGAY_')) {
+    const entered = prompt('Paste your new Gemini API Key from Google AI Studio (this will be saved safely in your browser so GitHub will not block it):');
+    if (!entered) return;
+    activeApiKey = entered.trim();
+    localStorage.setItem('PROCUREMENT_GEMINI_KEY', activeApiKey);
   }
 
   chatLog.innerHTML += `<div class="bg-blue-50 text-blue-900 p-2 rounded-lg text-xs"><strong>Admin:</strong> ${instruction}</div>`;
@@ -802,7 +807,7 @@ Return ONLY valid JSON with this exact structure:
   "ai_reply": "Short confirmation message in English summarizing the changes made."
 }`;
 
-  try {
+  async function runGeminiRequest(keyToUse) {
     let candidateModels = [
       'gemini-3-flash-preview',
       'gemini-flash-latest',
@@ -811,8 +816,11 @@ Return ONLY valid JSON with this exact structure:
     ];
 
     try {
-      const listRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${GEMINI_API_KEY}`);
+      const listRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${keyToUse}`);
       const listData = await listRes.json();
+      if (listData.error) {
+        throw new Error(listData.error.message);
+      }
       if (listData.models) {
         const discovered = listData.models
           .filter(m =>
@@ -828,6 +836,9 @@ Return ONLY valid JSON with this exact structure:
         candidateModels = [...new Set([...candidateModels, ...discovered])];
       }
     } catch (e) {
+      if (e.message && e.message.toLowerCase().includes('api key not valid')) {
+        throw e;
+      }
       console.warn('Model discovery fallback:', e);
     }
 
@@ -835,7 +846,7 @@ Return ONLY valid JSON with this exact structure:
     let lastError = 'No working Gemini model found.';
 
     for (const modelName of candidateModels) {
-      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${GEMINI_API_KEY}`, {
+      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${keyToUse}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -863,6 +874,25 @@ Return ONLY valid JSON with this exact structure:
     }
 
     if (!rawJson) throw new Error(lastError);
+    return rawJson;
+  }
+
+  try {
+    let rawJson;
+    try {
+      rawJson = await runGeminiRequest(activeApiKey);
+    } catch (firstErr) {
+      // Kapag na-block ng GitHub/Google ang key, hingin ang bagong key sa popup at ulitin agad
+      if (firstErr.message && firstErr.message.toLowerCase().includes('api key not valid')) {
+        const newKey = prompt('Na-disable ng Google ang lumang API Key dahil na-scan sa GitHub.\n\nGumawa ng BAGONG API Key sa Google AI Studio (aistudio.google.com/app/apikey) at i-paste dito:');
+        if (!newKey) throw firstErr;
+        activeApiKey = newKey.trim();
+        localStorage.setItem('PROCUREMENT_GEMINI_KEY', activeApiKey);
+        rawJson = await runGeminiRequest(activeApiKey);
+      } else {
+        throw firstErr;
+      }
+    }
 
     const cleanedJson = rawJson.replace(/^```json\s*/i, '').replace(/```\s*$/i, '').trim();
     const updated = JSON.parse(cleanedJson);
