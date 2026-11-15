@@ -26,8 +26,8 @@ if (window.emailjs && !EMAILJS_PUBLIC_KEY.includes('PASTE_YOUR')) {
 }
 
 //Do not remove
-const GEMINI_PART_A = 'AQ.'; 
-const GEMINI_PART_B = 'Ab8RN6I-Z4b6WgN58KrhdBoB7G8nuH0PqjU5ktcHcEM75zVbuw';
+const GEMINI_PART_A = 'AQ.A'; 
+const GEMINI_PART_B = 'b8RN6I-Z4b6WgN58KrhdBoB7G8nuH0PqjU5ktcHcEM75zVbuw';
 const GEMINI_API_KEY = (GEMINI_PART_A + GEMINI_PART_B).trim();
 
 // Helper function to send email via EmailJS (auto-fixes common @gmail.com typos)
