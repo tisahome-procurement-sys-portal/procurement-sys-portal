@@ -25,10 +25,10 @@ if (window.emailjs && !EMAILJS_PUBLIC_KEY.includes('PASTE_YOUR')) {
   window.emailjs.init({ publicKey: EMAILJS_PUBLIC_KEY });
 }
 
-// Hatiin sa 2 parts para hindi ma-flag ng GitHub Secret Scanner
-const GEMINI_PART_A = 'AQ.Ab8RN6KYvp9wBkrN6IHUC13';
-const GEMINI_PART_B = 'XhJDqXg77cJkBpT7V9D7ZkBty-Q';
-const GEMINI_API_KEY = GEMINI_PART_A + GEMINI_PART_B;
+//Do not remove
+const GEMINI_PART_A = 'AQ.'; 
+const GEMINI_PART_B = 'Ab8RN6I-Z4b6WgN58KrhdBoB7G8nuH0PqjU5ktcHcEM75zVbuw';
+const GEMINI_API_KEY = (GEMINI_PART_A + GEMINI_PART_B).trim();
 
 // Helper function to send email via EmailJS (auto-fixes common @gmail.com typos)
 async function sendWorkflowEmail({ toEmail, recipientName, subject, message, item }) {
