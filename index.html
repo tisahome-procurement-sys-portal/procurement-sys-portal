@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Procurement & PO System</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+</head>
+<body class="bg-slate-100 min-h-screen text-slate-800">
+
+  <!-- LOGIN SCREEN -->
+  <div id="loginScreen" class="min-h-screen flex items-center justify-center p-4">
+    <div class="bg-white rounded-xl shadow-lg border border-slate-200 max-w-md w-full p-6 space-y-5">
+      <div class="text-center border-b pb-4">
+        <h1 class="text-xl font-bold text-slate-900">Procurement & Purchasing Portal</h1>
+        <p class="text-xs text-slate-500 mt-1">Sign in with your department credentials</p>
+      </div>
+
+      <form id="loginForm" class="space-y-4">
+        <div>
+          <label class="block text-xs font-semibold uppercase text-slate-600 mb-1">Username</label>
+          <input type="text" id="loginUser" required placeholder="Enter username" class="w-full border rounded-lg px-3 py-2 text-sm">
+        </div>
+        <div>
+          <label class="block text-xs font-semibold uppercase text-slate-600 mb-1">Password</label>
+          <input type="password" id="loginPass" required placeholder="Enter password" class="w-full border rounded-lg px-3 py-2 text-sm">
+        </div>
+        <div id="loginError" class="hidden text-xs text-red-600 bg-red-50 p-2.5 rounded border border-red-200"></div>
+        <button type="submit" class="w-full bg-slate-900 hover:bg-slate-800 text-white font-semibold text-sm py-2.5 rounded-lg">
+          Sign In
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <!-- MAIN APPLICATION -->
+  <div id="appScreen" class="hidden">
+    <nav class="bg-slate-900 text-white px-6 py-4 shadow-md flex flex-wrap justify-between items-center gap-4">
+      <div>
+        <h1 class="text-xl font-bold tracking-wide">Procurement & Purchasing Portal</h1>
+        <p class="text-xs text-slate-400">Department Requisition to Finance Check Preparation</p>
+      </div>
+      <div class="flex items-center gap-4">
+        <div class="text-right">
+          <div id="userBadgeName" class="text-sm font-semibold"></div>
+          <div id="userBadgeRole" class="text-xs text-emerald-400"></div>
+        </div>
+        <button type="button" id="logoutBtn" class="bg-red-600 hover:bg-red-700 text-white text-xs font-semibold px-3 py-1.5 rounded">
+          Logout
+        </button>
+      </div>
+    </nav>
+
+    <main class="max-w-7xl mx-auto p-6 space-y-8">
+
+      <!-- STEP 1: REQUESTOR FORM -->
+      <section id="requestorSection" class="bg-white p-6 rounded-xl shadow-sm border border-slate-200 hidden">
+        <div class="flex justify-between items-center mb-4 border-b pb-3">
+          <div>
+            <h2 class="text-lg font-bold text-slate-800">Submit Purchase Request (PR)</h2>
+            <p class="text-xs text-slate-500">Add multiple items inside a single PO box for one-time approval, or add a separate PO group if needed.</p>
+          </div>
+        </div>
+
+        <form id="prForm" class="space-y-4">
+          <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div>
+              <label class="block text-xs font-semibold uppercase text-slate-600 mb-1">Department *</label>
+              <input type="text" id="reqDept" readonly class="w-full border rounded-lg px-3 py-2 text-sm bg-slate-100 font-semibold text-slate-700">
+            </div>
+            <div>
+              <label class="block text-xs font-semibold uppercase text-slate-600 mb-1">Requestor Name *</label>
+              <input type="text" id="reqName" required placeholder="John Doe" class="w-full border rounded-lg px-3 py-2 text-sm">
+            </div>
+            <div>
+              <label class="block text-xs font-semibold uppercase text-slate-600 mb-1">Requestor Email *</label>
+              <input type="email" id="reqEmail" required placeholder="name@company.com" class="w-full border rounded-lg px-3 py-2 text-sm">
+            </div>
+            <div>
+              <label class="block text-xs font-semibold uppercase text-slate-600 mb-1">Purpose / Justification *</label>
+              <input type="text" id="reqPurpose" required placeholder="e.g. Monthly office supplies restock" class="w-full border rounded-lg px-3 py-2 text-sm">
+            </div>
+          </div>
+
+          <!-- Dynamic PO Groups Container -->
+          <div class="space-y-3 pt-2">
+            <div class="flex justify-between items-center">
+              <label class="text-xs font-bold uppercase text-slate-700">Requested Purchase Order Groups</label>
+              <button type="button" id="addItemBtn" class="bg-slate-800 hover:bg-slate-700 text-white text-xs px-3 py-1.5 rounded-lg">
+                + Add Separate PO Group
+              </button>
+            </div>
+
+            <div id="itemsContainer" class="space-y-4"></div>
+          </div>
+
+          <div class="pt-3 flex justify-end">
+            <button type="submit" id="submitBtn" class="bg-blue-600 hover:bg-blue-700 text-white font-semibold text-sm px-6 py-2.5 rounded-lg shadow">
+              Submit Request to Admin
+            </button>
+          </div>
+        </form>
+      </section>
+
+      <!-- LIVE TRACKER & WORKFLOW TABLE -->
+      <section class="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+        <div class="flex flex-wrap justify-between items-center gap-4 mb-4">
+          <div>
+            <h2 class="text-lg font-bold text-slate-800">Purchase Orders & Requests Tracker</h2>
+            <p id="roleHint" class="text-xs text-blue-600 font-medium"></p>
+          </div>
+          <div class="flex gap-2">
+            <select id="statusFilter" class="border rounded-lg px-3 py-1.5 text-sm">
+              <option value="ALL">All Statuses</option>
+              <option value="Pending Admin">Pending Admin (Draft PO)</option>
+              <option value="For Approval">For Manager Approval</option>
+              <option value="Approved">Approved (For Supplier Billing)</option>
+              <option value="Returned for Info">Returned for Additional Info</option>
+              <option value="For Check Prep">Finance: For Check Prep</option>
+              <option value="Check Ready">Check Ready (For Admin Purchasing)</option>
+              <option value="Partially Completed">Partially Completed</option>
+              <option value="Completed">Completed</option>
+              <option value="Cancelled">Cancelled / Denied</option>
+            </select>
+            <button type="button" id="refreshBtn" class="bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm px-3 py-1.5 rounded-lg border">
+              Refresh
+            </button>
+          </div>
+        </div>
+
+        <div class="overflow-x-auto">
+          <table class="w-full text-left border-collapse text-sm">
+            <thead>
+              <tr class="bg-slate-50 border-b text-xs uppercase text-slate-500">
+                <th class="p-3">PR / PO No.</th>
+                <th class="p-3">Date Requested</th>
+                <th class="p-3">Dept & Requestor</th>
+                <th class="p-3">Items & Qty</th>
+                <th class="p-3">Supplier & Amount</th>
+                <th class="p-3">Attachments</th>
+                <th class="p-3">Status & Remarks</th>
+                <th class="p-3 text-right">Action</th>
+              </tr>
+            </thead>
+            <tbody id="requestsTableBody" class="divide-y divide-slate-200"></tbody>
+          </table>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <!-- ACTION MODAL -->
+  <div id="actionModal" class="fixed inset-0 bg-black/50 hidden items-center justify-center p-4 z-50">
+    <div class="bg-white rounded-xl max-w-lg w-full p-6 space-y-4 shadow-xl max-h-[90vh] overflow-y-auto">
+      <div class="flex justify-between items-center border-b pb-2">
+        <h3 id="modalTitle" class="font-bold text-lg">Update Request</h3>
+        <button type="button" onclick="closeModal()" class="text-slate-400 hover:text-slate-600 text-xl">×</button>
+      </div>
+      <div id="modalBody" class="space-y-3 text-sm"></div>
+      <div id="modalFooter" class="flex justify-end gap-2 pt-3 border-t"></div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
